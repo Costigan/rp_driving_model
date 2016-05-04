@@ -1,7 +1,7 @@
 # rp_driving_model
 Simple discrete-event model to estimate Resource Prospector driving speed in different sensor configurations
 
-# Documentation for the discrete event simulator itself
+## Documentation for the discrete event simulator itself
 
 Files:
   Currently used:
@@ -160,6 +160,6 @@ these files is in c#, and can run under linux (mono), but I haven't
 tried it.  I can send that too if it would be useful.
 
 
-# Documentation for the results plotter
+## Documentation for the results plotter
 
-<todo>
+[todo]
