@@ -1,4 +1,6 @@
-Rover Discrete Event Simulator
+Simple Rover Discrete Event Simulator
+
+* Documentation for the discrete event simulator itself
 
 Files:
   Currently used:
@@ -155,3 +157,8 @@ alphabetic order, and a final state 'vector' for each of a set of
 runs that vary in some way.  My program for reading and plotting
 these files is in c#, and can run under linux (mono), but I haven't
 tried it.  I can send that too if it would be useful.
+
+
+* Documentation for the results plotter
+
+<todo>
