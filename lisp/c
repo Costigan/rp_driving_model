@@ -1,0 +1,8 @@
+(compile-file "regression.lisp")
+(compile-file "table-printer.lisp")
+(compile-file "simple-queue.lisp")
+(compile-file "tests.lisp")
+(compile-file "sim.lisp")
+(compile-file "model.lisp")
+(compile-file "cases.lisp")
+(compile-file "monte-carlo.lisp")

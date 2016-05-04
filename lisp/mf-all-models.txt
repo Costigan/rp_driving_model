@@ -1,0 +1,82 @@
+Running TEST-BASIC-1 ... succeeded.
+Running TEST-QUEUE-1 ... succeeded.
+Running TEST-QUEUE-2 ... succeeded.
+Running TEST-QUEUE-3 ... succeeded.
+Running TEST-QUEUE-4 ... succeeded.
+
+SUCCESS.
+5 tests succeeded.
+0 tests failed.
+Variable                        LIDARS-GALORE BAL-LOW-BAND  SINK-HIGH-LAT BALANCED       KITCHEN-SINK   BASELINE       SINK-LOW-BAND  BALANCED2      BAL-HIGH-LAT   BUMPER-CAR     
+*AUTONOMOUS-WAYPOINT-DISTANCE*            50            50            50            50             50             50             50             50             50             50   
+*AVERAGE-CYCLE-TIME*                 1.28786       9.12812    1564.60510      33.88208     1831.03990       68.11893     3468.55030      115.16800       80.14196      140.14243   
+*BELLY-BITS*                        12582912             0      12582912      12582912       12582912              0       12582912       12582912       12582912              0   
+*BELLY-PAYLOAD*                      3145728             0       3145728       3145728        3145728              0       12582912        3145728        3145728              0   
+*BUMPER-BITS*                           1280          1280          2560          1280           1280           1280           1280           1280           1280           1280   
+*BUMPER-EVAL-PAYLOAD*               14155776     163577856     216662016     213909504      213909504      276824064       18984960      239075328      239075328      276824064   
+*BUMPER-EVAL-TIME*                       400           150            60           150            150            300            150            400            400            500   
+*BUMPER-PAYLOAD*                        1280          1280          2560          1280           1280           1280           1280           1280           1280           1280   
+*BUMPER-TRIGGER-RATE*                0.00200       0.00250       0.00200       0.00400        0.00800        0.00800        0.00200        0.00800        0.00800        0.00800   
+*DEFAULT-SENSOR-PAYLOAD*        LIDAR-PAYLOAD LIDAR-PAYLOAD LIDAR-PAYLOAD NAVCAM-PAYLOAD NAVCAM-PAYLOAD NAVCAM-PAYLOAD NAVCAM-PAYLOAD NAVCAM-PAYLOAD NAVCAM-PAYLOAD NAVCAM-PAYLOAD 
+*DESIGN-CASE*                              4             9             6             2              3              1              8              5              5              7   
+*DESIGN-CASE-NAME*              LIDARS-GALORE BAL-LOW-BAND  SINK-HIGH-LAT     BALANCED   KITCHEN-SINK       BASELINE   SINK-LOW-BAND     BALANCED2   BAL-HIGH-LAT     BUMPER-CAR   
+*DOWNLINK-LATENCY*                        10            10           120            10             10             10             10             10            120            120   
+*DOWNLINK-RATE*                       400000         60000        400000        400000         400000         400000          60000         400000         400000         400000   
+*DRIVE-DISTANCE-ALONG-PATH*                0             0             0             0              0              0              0              0              0              0   
+*DRIVER-DECISION-TIME-DAY*                 1             1             1            15             15             30             30             45             45             45   
+*DRIVER-DECISION-TIME-NIGHT*               1             1             1            30             30             45             45             60             60             60   
+*DRIVING-METHOD*                  CONTINUOUS    CONTINUOUS    AUTONOMOUS    CONTINUOUS     AUTONOMOUS    STOP-AND-GO     AUTONOMOUS    STOP-AND-GO    STOP-AND-GO     CONTINUOUS   
+*DUTY-CYCLE*                         0.85199       0.39288       0.33568       0.35291        0.26106        0.28439        0.14404        0.18823        0.09220        0.07321   
+*ENTER-PSR-DECISION-TIME*                 60            60            60            60             60             60             60             60             60             60   
+*FINAL-ROVER-POSITION*            5000.04500    3000.03130    3000.04050    4000.12550     4000.19850     5000.58500     3000.56860     4000.56740     4000.38400     6000.08800   
+*FINAL-TIME*                     59416.61300   93417.14000   93876.30500  121873.83000   177610.88000   204901.77000   211581.56000   233330.36000   455526.90000   855989.94000   
+*GROUND-PROCESSING-TIME*                   2             2             2             2              2              2              2              2              2              2   
+*HAZARD-EVAL-PAYLOAD*               50331648     100663296     216662016      75497472       75497472      100663296      101105664      125829120      125829120      276824064   
+*HAZARD-EVAL-TIME*                        90           105           225           120            120            120            120            240            240            240   
+*HAZARD-TRIGGER-RATE*                0.00500       0.01000       0.02000       0.04000        0.04000        0.04000        0.02000        0.05000        0.05000        0.08000   
+*HAZCAM-BITS*                         393216       3145728       3145728       3145728        3145728       12582912        3201024        3145728        3145728       12582912   
+*HAZCAM-PAYLOAD*                      196608       1572864       1572864       1572864        1572864        6291456        1600512         786432         786432        6291456   
+*LENGTH-OF-AUTONOMOUS-TRAVERSE*            0             0             8             0        4.50000              0        4.50000              0              0              0   
+*LIDAR-BITS*                          393216        262144        393216             0              0              0              0         393216         393216              0   
+*LIDAR-PAYLOAD*                       196608        131072        196608             0              0              0              0              0              0              0   
+*LOOKAHEAD-DISTANCE-DAY*                  11             9             8       4.50000        4.50000        4.50000        4.50000        4.50000        4.50000        4.50000   
+*LOOKAHEAD-DISTANCE-NIGHT*                11             9             8       4.50000        4.50000        4.50000        4.50000        4.50000        4.50000        4.50000   
+*NAVCAM-BITS*                       12582912      12582912      12582912      12582912       12582912       12582912       12582912       12582912       12582912       12582912   
+*NAVCAM-PAYLOAD*                     3145728       3145728       4194304       3145728        3145728        3145728        2097152        3145728        3145728        6291456   
+*ONBOARD-PROCESSING-TIME*                  0             0            20             0             55              0             55              0              0              0   
+*PATH-MULTIPLIER*                          5             3             3             4              4              5              3              4              4              6   
+*POST-AUTONOMY-PAYLOAD*             25165824             0      25165824      25165824       25165824       25165824       25165824       25165824       25165824       25165824   
+*ROVER-DRIVING-TIME*             49973.34800   30000.67800   29994.71700   40003.59000    40003.08200    50006.65000    30005.61000    40007.29000    40003.93800    59999.18000   
+*ROVER-WAITING-TIME*              8681.36300   46360.71000   59359.65000   73351.19000   113230.98000   125833.94500   178315.42000   172538.36000   393866.50000   759583.20000   
+*RT-SCIENCE-CONSULTATION-RATE*       0.01000       0.01000       0.01000       0.01000        0.01000        0.01000        0.01000        0.01000        0.01000        0.01000   
+*RT-SCIENCE-CONSULTATION-TIME*            60            60           180            60             60             60             60            180            180            180   
+*SPEED-MADE-GOOD*                    0.01683       0.01070       0.01065       0.00821        0.00563        0.00488        0.00473        0.00429        0.00220        0.00117   
+*SPEED-MADE-GOOD-ALONG-PATH*         0.08415       0.03211       0.03196       0.03282        0.02252        0.02440        0.01418        0.01715        0.00878        0.00701   
+*TIME-TO-DRIVE-SCENARIO*            16.50461      25.94921      26.07675      33.85384       49.33635       56.91716       58.77266       64.81399      126.53526      237.77498   
+*UPLINK-LATENCY*                          10            10            10            10             10             10             10             10            120             10   
+
+Speed made good bar chart
+	Speed made good
+LIDARS-GALORE	     0.01683
+BAL-LOW-BAND	     0.01070
+SINK-HIGH-LAT	     0.01065
+BALANCED	     0.00821
+KITCHEN-SINK	     0.00563
+BASELINE	     0.00488
+SINK-LOW-BAND	     0.00473
+BALANCED2	     0.00429
+BAL-HIGH-LAT	     0.00220
+BUMPER-CAR	     0.00117
+
+Speed made good along path bar chart
+	Speed made good along path
+LIDARS-GALORE	     0.08415
+BAL-LOW-BAND	     0.03211
+SINK-HIGH-LAT	     0.03196
+BALANCED	     0.03282
+KITCHEN-SINK	     0.02252
+BASELINE	     0.02440
+SINK-LOW-BAND	     0.01418
+BALANCED2	     0.01715
+BAL-HIGH-LAT	     0.00878
+BUMPER-CAR	     0.00701

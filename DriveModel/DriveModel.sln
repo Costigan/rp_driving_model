@@ -1,0 +1,46 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriveModel", "DriveModel\DriveModel.csproj", "{31F12778-CA0F-4876-83D4-CFA887444193}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DriveModel2", "DriveModel2\DriveModel2.csproj", "{2813B7F2-95B2-4510-AF10-09E0E45DF49F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SolutionPlotter", "SplutionPlotter\SolutionPlotter.csproj", "{6135F180-3330-4BC5-AB4A-C7DCF265B027}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TraceVisualization", "TraceVisualization\TraceVisualization.csproj", "{D23DB3A5-83D1-4722-AA03-045B21321A16}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SExpression", "SExpression\SExpression.csproj", "{250A4DB9-B453-4A01-AC62-AFA5078BF40E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{31F12778-CA0F-4876-83D4-CFA887444193}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31F12778-CA0F-4876-83D4-CFA887444193}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31F12778-CA0F-4876-83D4-CFA887444193}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31F12778-CA0F-4876-83D4-CFA887444193}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2813B7F2-95B2-4510-AF10-09E0E45DF49F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2813B7F2-95B2-4510-AF10-09E0E45DF49F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2813B7F2-95B2-4510-AF10-09E0E45DF49F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2813B7F2-95B2-4510-AF10-09E0E45DF49F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6135F180-3330-4BC5-AB4A-C7DCF265B027}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6135F180-3330-4BC5-AB4A-C7DCF265B027}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6135F180-3330-4BC5-AB4A-C7DCF265B027}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6135F180-3330-4BC5-AB4A-C7DCF265B027}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D23DB3A5-83D1-4722-AA03-045B21321A16}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D23DB3A5-83D1-4722-AA03-045B21321A16}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D23DB3A5-83D1-4722-AA03-045B21321A16}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D23DB3A5-83D1-4722-AA03-045B21321A16}.Release|Any CPU.Build.0 = Release|Any CPU
+		{250A4DB9-B453-4A01-AC62-AFA5078BF40E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{250A4DB9-B453-4A01-AC62-AFA5078BF40E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{250A4DB9-B453-4A01-AC62-AFA5078BF40E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{250A4DB9-B453-4A01-AC62-AFA5078BF40E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
