@@ -195,6 +195,22 @@
 				       (enum *DRIVER-DECISION-TIME-DAY* 10 30))))
    :filename "a-scatter-together.trials"))
 
+(defun RUN-100M-SCATTER ()
+  (let ((*variable-override-function* #'(lambda ()
+					  (setq *driving-distance* 300)
+					  (setq *path-multiplier* 1)
+					  (setq *hazard-trigger-rate* 0)
+					  (format t "set to 100m values~%")
+					  )))
+  (run-scatter-print
+   (append (run-scatter-cases :cases '(baseline drive-100m)
+			      :specs '(
+;				       (enum *hazard-trigger-rate* 0.04 0.02 0.01 0.005 0.003 0.002 0.001  0.0001 0.00001 0)
+				       (enum *bumper-trigger-rate* 0.04 0.02 0.01 0.005 0.003 0.002 0.001  0.0001 0.00001 0)
+				       )))
+   :filename "100m-scatter.trials")))
+
+
 (defun SCATTER-COMPARE ()
   (run-scatter :cases *cases*
 	       :filename "a-scatter-compare.cases"))

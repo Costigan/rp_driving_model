@@ -31,14 +31,14 @@
   (unless (member name *cases*)
     (error "There is no case named ~a" name))
   (dolist (keyword *case-keywords*) 
-    (set (get keyword :variable) (get name keyword))))
+    (set (get keyword :variable) (get name keyword)))
+  (when *variable-override-function* 
+    (funcall *variable-override-function*)))
 
 (defvar *VARIABLE-OVERRIDE-FUNCTION* nil)
 
 (defun RUN-CASE (name)
   (apply-case name)
-  (when *variable-override-function* 
-    (funcall *variable-override-function*))
   (run-model))
 
 (defun RUN-MODELS (models)
@@ -549,6 +549,47 @@
   :path-multiplier			3
   )
 
+(define-case DRIVE-100M "drive 100m"
+  :design-case				10
+  :navcam-bits				(* 1024 1024 12) ;one full image
+  :hazcam-bits				(* 1024 1024 12) ;one full image
+  :belly-bits				0
+  :lidar-bits				0
+  :bumper-bits				(* 2 20 4 8)
+
+  :driving-method			:stop-and-go
+  :default-sensor-payload		'navcam-payload
+  :downlink-rate			400000
+  :downlink-latency			10
+  :uplink-latency			10
+
+  :navcam-payload			(/ (* *navcam-bits* 2) 2 4) ;stereo, subframing=2, compression=4
+  :hazcam-payload			(/ (* *hazcam-bits* 2) 4) ;stereo, subframing=1, compression=4
+  :belly-payload			(/ *belly-bits* 4)
+  :lidar-payload			(/ *lidar-bits* 2) ;compression=2
+  :bumper-payload			*bumper-bits*
+  
+  :lookahead-distance-day		4.5
+  :lookahead-distance-night		4.5 
+  :driver-decision-time-day		30
+  :driver-decision-time-night		45 
+  :rt-science-consultation-time		60
+  :rt-science-consultation-rate		(/ 1.0 100) ;1 per 100 m
+
+  :hazard-trigger-rate			(/ 1.0 25)	   ;1 per 25 m
+  :hazard-eval-payload			(* 4 2 *navcam-bits*) ;4 stereo pairs
+  :hazard-eval-time			120
+
+  :bumper-trigger-rate			(/ 2.0 250) ;2 per 250 m
+  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
+  :bumper-eval-time			300
+
+  :onboard-processing-time		0 
+  :length-of-autonomous-traverse	0 
+  :post-autonomy-payload		(* 2 *navcam-bits*)
+  :path-multiplier			5
+  )
+
 (defun RECONSTRUCT-CASE ()
   `(define-case ,*design-case-name* "Reconstructed case"
        ,@(loop for keyword in  *case-keywords*
@@ -632,7 +673,7 @@
 					  (setq *driving-distance* 100)
 					  (setq *path-multiplier* 1)
 					  )))
-    (run-case 'baseline)
+    (run-case 'drive-100m)
     (values
      *total-downlink*
      (/ (* *total-downlink* 1000000 8) *final-time* ))))
