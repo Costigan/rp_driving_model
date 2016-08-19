@@ -334,10 +334,17 @@
 ;				  (enum *hazard-encounter-eval-time* (* 30 60) (* 60 60) (* 120 60) (* 6 3600))
 ;				  ))
 
+;      (run-scatter-cases :cases '(aoa2)
+;			 :specs '(
+;				  (enum *hazard-encounter-trigger-rate* (/ 1.0 1000))
+;				  (enum *hazard-encounter-eval-time* (* 30 60) (* 60 60) (* 120 60) (* 240 60) (* 6 3600))
+;				  ))
+
       (run-scatter-cases :cases '(aoa2)
 			 :specs '(
-				  (enum *hazard-encounter-trigger-rate* (/ 1.0 1000))
-				  (enum *hazard-encounter-eval-time* (* 30 60) (* 60 60) (* 120 60) (* 240 60) (* 6 3600))
+				  (enum *hazard-encounter-trigger-rate* 0)
+				  (enum *hazard-trigger-rate* 0 (/ 1.0 5) (/ 1.0 10) (/ 1.0 20))
+				  (enum *hazard-eval-time* 45 90 180)
 				  ))
 
       )
