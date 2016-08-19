@@ -27,18 +27,26 @@
 (defun GET-VARIABLE-FROM-KEYWORD (symbol)
   (intern (concatenate 'string "*" (string symbol) "*")))
 
-(defun APPLY-CASE (name)
+(defun APPLY-CASE (name &aux temp)
   (unless (member name *cases*)
     (error "There is no case named ~a" name))
-  (dolist (keyword *case-keywords*) 
-    (set (get keyword :variable) (get name keyword)))
-  (when *variable-override-function* 
-    (funcall *variable-override-function*)))
+  (let ((plist (symbol-plist name)))
+    (dolist (keyword *case-keywords*) 
+      (let ((var (get keyword :variable))
+	    (val (get name keyword)))
+	(cond (val 
+	       (set var val))
+	      ((setq temp (member keyword plist))
+	       (set var (second temp)))
+	      (t
+	       (set var (get (get keyword :variable) :default))))))))
 
 (defvar *VARIABLE-OVERRIDE-FUNCTION* nil)
 
 (defun RUN-CASE (name)
   (apply-case name)
+  (when *variable-override-function* 
+    (funcall *variable-override-function*))
   (run-model))
 
 (defun RUN-MODELS (models)
@@ -137,6 +145,54 @@
 ;;;
 ;;; The cases themselves
 ;;;
+
+(define-case AoA2 "AoA2 case"
+  :design-case				11
+  :navcam-bits				(* 1024 1024 12) ;one full image
+  :hazcam-bits				(* 1024 1024 12) ;one full image
+  :belly-bits				0
+  :lidar-bits				0
+  :bumper-bits				0
+
+  :driving-method			:stop-and-go
+  :default-sensor-payload		'navcam-payload
+  :downlink-rate			100000
+  :downlink-latency			10
+  :uplink-latency			10
+
+  :navcam-payload			(/ (* *navcam-bits* 1) 1 6) ;not-stereo, no-subframing, compression=6 (appropriate for humans)
+  :hazcam-payload			0  ; (/ (* *hazcam-bits* 1) 1 6) ; forward and backward navcams, use one at a time; no separate hazcams
+  :belly-payload			0
+  :lidar-payload			0
+  :bumper-payload			0
+  
+;; Consider breaking this into (a) distance that's safe to drive and (b) distance that one can see
+
+  :lookahead-distance-day		4 ; lunokhod was 4.3m w better lighting
+  :lookahead-distance-night		4 ; think about these again (night driving=>lower dynamic range=>better quality images
+  :driver-decision-time-day		90 ; 70   ; 2.5*90 = a*1.5 + b
+  :driver-decision-time-night		89 
+  :rt-science-consultation-time		180 ; reconsider
+  :rt-science-consultation-rate		0  ;  FOR NOW (/ 1.0 50) ;1 per 50 m
+
+;; We need to think about a proper fudge factor to account for the difference between rails and science stations
+
+  :hazard-trigger-rate			(/ 1.0 25) ; (/ 1.0 10)	   ;1 per 25 m (mean free path)
+  :hazard-eval-payload			(* 2 *navcam-bits*);
+  :hazard-eval-time			240
+
+  :bumper-trigger-rate			0 ;2 per 250 m
+  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
+  :bumper-eval-time			300
+
+  :hazard-encounter-trigger-rate         (/ 1.0 1000)
+  :hazard-encounter-eval-time            3600
+
+  :onboard-processing-time		0 
+  :length-of-autonomous-traverse	0 
+  :post-autonomy-payload		(* 2 *navcam-bits*)
+  :path-multiplier			5
+  )
 
 (define-case BASELINE "2 Nav cams w/2 structured lights on mast; 2 Haz cams w/2 structured lights under chassis"
   :design-case				1 
@@ -549,47 +605,6 @@
   :path-multiplier			3
   )
 
-(define-case DRIVE-100M "drive 100m"
-  :design-case				10
-  :navcam-bits				(* 1024 1024 12) ;one full image
-  :hazcam-bits				(* 1024 1024 12) ;one full image
-  :belly-bits				0
-  :lidar-bits				0
-  :bumper-bits				(* 2 20 4 8)
-
-  :driving-method			:stop-and-go
-  :default-sensor-payload		'navcam-payload
-  :downlink-rate			400000
-  :downlink-latency			10
-  :uplink-latency			10
-
-  :navcam-payload			(/ (* *navcam-bits* 2) 2 4) ;stereo, subframing=2, compression=4
-  :hazcam-payload			(/ (* *hazcam-bits* 2) 4) ;stereo, subframing=1, compression=4
-  :belly-payload			(/ *belly-bits* 4)
-  :lidar-payload			(/ *lidar-bits* 2) ;compression=2
-  :bumper-payload			*bumper-bits*
-  
-  :lookahead-distance-day		4.5
-  :lookahead-distance-night		4.5 
-  :driver-decision-time-day		30
-  :driver-decision-time-night		45 
-  :rt-science-consultation-time		60
-  :rt-science-consultation-rate		(/ 1.0 100) ;1 per 100 m
-
-  :hazard-trigger-rate			(/ 1.0 25)	   ;1 per 25 m
-  :hazard-eval-payload			(* 4 2 *navcam-bits*) ;4 stereo pairs
-  :hazard-eval-time			120
-
-  :bumper-trigger-rate			(/ 2.0 250) ;2 per 250 m
-  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
-  :bumper-eval-time			300
-
-  :onboard-processing-time		0 
-  :length-of-autonomous-traverse	0 
-  :post-autonomy-payload		(* 2 *navcam-bits*)
-  :path-multiplier			5
-  )
-
 (defun RECONSTRUCT-CASE ()
   `(define-case ,*design-case-name* "Reconstructed case"
        ,@(loop for keyword in  *case-keywords*
@@ -673,7 +688,7 @@
 					  (setq *driving-distance* 100)
 					  (setq *path-multiplier* 1)
 					  )))
-    (run-case 'drive-100m)
+    (run-case 'baseline)
     (values
      *total-downlink*
      (/ (* *total-downlink* 1000000 8) *final-time* ))))

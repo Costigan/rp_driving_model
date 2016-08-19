@@ -38,7 +38,7 @@
 		   (loop with enum = (first enums)
 		      for val in (cddr enum)
 		      do (progn
-			   (when val (apply-enum-case (second enum) val))
+			   (when val (apply-enum-case (second enum) (eval-if-necessary val)))
 			   (prepare-enum-inputs (cdr enums))))))
 	     (PREPARE-STEP-INPUTS (specs)
 	       (if (null specs) 
@@ -291,7 +291,8 @@
 		   (loop with enum = (first enums)
 		      for val in (cddr enum)
 		      do (progn
-			   (when val (setf (symbol-value (second enum)) val))
+			   (print val)
+			   (when val (setf (symbol-value (second enum)) (eval-if-necessary val)))
 			   (prepare-enum-inputs (cdr enums))))))
 	     (PREPARE-STEP-INPUTS (specs)
 	       (if (null specs) 
@@ -313,3 +314,31 @@
 	  (push (cons c r) runargs)))
       runargs)))
 
+(defun EVAL-IF-NECESSARY (v)
+  (cond ((listp v)
+	 (eval v))
+	(t
+	 v)))
+
+(defun RUN-AOA2-SCATTER ()
+  (let ()
+    (run-scatter-print
+     (append
+;      (run-scatter-cases :cases '(aoa2)
+;			 :specs '(
+;				  (enum (*lookahead-distance-day* *lookahead-distance-night*) (1 1) (2 2) (3 3) (4 4) (5 5))
+;				  ))
+;      (run-scatter-cases :cases '(aoa2)
+;			 :specs '(
+;				  (enum *hazard-encounter-trigger-rate* (/ 1.0 100) (/ 1.0 500) (/ 1.0 1000) (/ 1.0 1500))
+;				  (enum *hazard-encounter-eval-time* (* 30 60) (* 60 60) (* 120 60) (* 6 3600))
+;				  ))
+
+      (run-scatter-cases :cases '(aoa2)
+			 :specs '(
+				  (enum *hazard-encounter-trigger-rate* (/ 1.0 1000))
+				  (enum *hazard-encounter-eval-time* (* 30 60) (* 60 60) (* 120 60) (* 240 60) (* 6 3600))
+				  ))
+
+      )
+     :filename "aoa2-scatter.trials")))

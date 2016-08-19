@@ -66,6 +66,9 @@
 (define-input *BUMPER-EVAL-PAYLOAD* 0)		    ; no units
 (define-input *BUMPER-EVAL-TIME* 300)		    ; time
 
+(define-input *HAZARD-ENCOUNTER-TRIGGER-RATE* 0)
+(define-input *HAZARD-ENCOUNTER-EVAL-TIME* (* 60 60)) ;1 hour
+
 ;;; Autonomy
 (define-input *LENGTH-OF-AUTONOMOUS-TRAVERSE* 4.5)	; meters
 (define-input *POST-AUTONOMY-PAYLOAD* 10)		;defined by cases
@@ -186,7 +189,10 @@
 (defmethod RECEIVE ((d DRIVER) (image SENSOR-PAYLOAD) &aux (state (state d)))
   (case state
     (:IDLE
-     (cond ((hazard-interrupt? image)
+     (cond ((hazard-encounter-interrupt? image)
+	    (setf (state d) :evaluating-hazard-encounter)
+	    (send d *rover* (make-instance 'send-hazard-payload) :delay *uplink-latency*))
+	   ((hazard-interrupt? image)
 	    (setf (state d) :evaluating-hazard)
 	    (send d *rover* (make-instance 'send-hazard-payload) :delay *uplink-latency*))
 	   (t
@@ -197,7 +203,8 @@
 	      (set-state d :evaluating-image)
 	      (send-wakeup d :delay decision-time)))))
     ((:EVALUATING-IMAGE
-      :EVALUATING-HAZARD) ;When there is already an image, don't change the driver's attention
+      :EVALUATING-HAZARD
+      :EVALUATING-HAZARD-ENCOUNTER) ;When there is already an image, don't change the driver's attention
      (setf (driver-image d) image))
     (:DRIVING-TO-PSR-EDGE
      (when (in-psr? (sensor-payload-position image))
@@ -207,7 +214,7 @@
     (:WAITING-FOR-AUTHORIZATION-TO-ENTER-PSR)))
 
 (defmethod RECEIVE ((d DRIVER) (image HAZARD-EVAL-PAYLOAD))
-  (do-later d *hazard-eval-time*
+  (do-later d (if (eql (state d) :evaluating-hazard-encounter) *hazard-encounter-eval-time* *hazard-eval-time*)
 	    (setf (state d) :idle)
 	    (send d d (make-instance 'sensor-payload :time-sent (sensor-payload-time-sent image) :position (sensor-payload-position image)) :delay 0)))
 
@@ -244,6 +251,7 @@
 		      (+ *time* *driver-decision-time-day*)))))))
     ((:DRIVING-TO-PSR-EDGE
       :EVALUATING-HAZARD
+      :EVALUATING-HAZARD-ENCOUNTER
       :WAITING-FOR-AUTHORIZATION-TO-ENTER-PSR))))
 
 (defmethod DRIVE-COMMAND-DISTANCE ((d DRIVER))
@@ -486,17 +494,21 @@
 
 (defvar *HAZARDS* '())
 (defvar *BUMPER-INTERRUPTS* '())
+(defvar *HAZARD-ENCOUNTER* '())
 
 (defun GENERATE-HAZARDS ()
   (let* ((d (* *driving-distance* *path-multiplier*))
 	 (num-hazards (floor (* d *hazard-trigger-rate*)))
-	 (num-bumps (floor (* d *bumper-trigger-rate*))))
+	 (num-bumps (floor (* d *bumper-trigger-rate*)))
+	 (num-hazard-encounter (floor (* d *hazard-encounter-trigger-rate*))))
     (setq *hazards* (sort (loop for i from 1 to num-hazards collect (random d)) #'<))
     (setq *bumper-interrupts* (sort (loop for i from 1 to num-bumps collect (random d)) #'<))
+    (setq *hazard-encounter* (sort (loop for i from 1 to num-hazard-encounter collect (random d)) #'<))
     (trace-when 1
 		(format t "  num-hazards=~s num-bumps=~s~%" num-hazards num-bumps)
 		(format t "  *hazards*=~s~%" *hazards*)
 		(format t "  *bumper-interrupts*=~s~%" *bumper-interrupts*)
+		(format t "  *hazard-encounter*=~s~%" *hazard-encounter*)
 		(finish-output nil))
     ))
 
@@ -510,6 +522,12 @@
   (cond ((null *bumper-interrupts*) nil)
 	((>= (rover-position *rover*) (first *bumper-interrupts*))
 	 (pop *bumper-interrupts*))
+	(t nil)))
+
+(defun HAZARD-ENCOUNTER-INTERRUPT? (sensor-payload)
+  (cond ((null *hazard-encounter*) nil)
+	((>= (sensor-payload-position sensor-payload) (first *hazard-encounter*))
+	 (pop *hazard-encounter*))
 	(t nil)))
 
 (defun CHECK-FOR-INTERRUPTION ()
@@ -612,7 +630,7 @@
     (setf *final-rover-position* (rover-position *rover*))
     (setf *total-downlink* (/ (gds-total-downlink-bits *gds*) (* 8.0 1000000)))
     (setf *final-time* *time*)
-    *speed-made-good*))
+    *speed-made-good-along-path*))
 
 (defun PRINT-MODEL ()
   (run-model)
