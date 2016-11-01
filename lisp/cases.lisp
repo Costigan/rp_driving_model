@@ -146,67 +146,19 @@
 ;;; The cases themselves
 ;;;
 
-(define-case AoA2 "AoA2 case"
-  :design-case				11
-  :navcam-bits				(* 1024 1024 12) ;one full image
-  :hazcam-bits				(* 1024 1024 12) ;one full image
-  :belly-bits				0
-  :lidar-bits				0
-  :bumper-bits				0
-
-  :driving-method			:stop-and-go
-  :default-sensor-payload		'navcam-payload
-  :downlink-rate			100000
-  :downlink-latency			10
-  :uplink-latency			10
-
-  :navcam-payload			(/ (* *navcam-bits* 1) 1 6) ;not-stereo, no-subframing, compression=6 (appropriate for humans)
-  :hazcam-payload			0  ; (/ (* *hazcam-bits* 1) 1 6) ; forward and backward navcams, use one at a time; no separate hazcams
-  :belly-payload			0
-  :lidar-payload			0
-  :bumper-payload			0
-  
-;; Consider breaking this into (a) distance that's safe to drive and (b) distance that one can see
-
-  :lookahead-distance-day		4 ; lunokhod was 4.3m w better lighting
-  :lookahead-distance-night		4 ; think about these again (night driving=>lower dynamic range=>better quality images
-  :driver-decision-time-day		90 ; 70   ; 2.5*90 = a*1.5 + b
-  :driver-decision-time-night		89 
-  :rt-science-consultation-time		180 ; reconsider
-  :rt-science-consultation-rate		0  ;  FOR NOW (/ 1.0 50) ;1 per 50 m
-
-;; We need to think about a proper fudge factor to account for the difference between rails and science stations
-
-  :hazard-trigger-rate			(/ 1.0 25) ; (/ 1.0 10)	   ;1 per 25 m (mean free path)
-  :hazard-eval-payload			(* 2 *navcam-bits*);
-  :hazard-eval-time			240
-
-  :bumper-trigger-rate			0 ;2 per 250 m
-  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
-  :bumper-eval-time			300
-
-  :hazard-encounter-trigger-rate         (/ 1.0 1000)
-  :hazard-encounter-eval-time            3600
-
-  :onboard-processing-time		0 
-  :length-of-autonomous-traverse	0 
-  :post-autonomy-payload		(* 2 *navcam-bits*)
-  :path-multiplier			5
-  )
-
 (define-case BASELINE "2 Nav cams w/2 structured lights on mast; 2 Haz cams w/2 structured lights under chassis"
   :design-case				1 
   :navcam-bits				(* 1024 1024 12) ;one full image
   :hazcam-bits				(* 1024 1024 12) ;one full image
   :belly-bits				0
   :lidar-bits				0
-  :bumper-bits				(* 2 20 4 8)
+  :bumper-bits				(* 40 32)
 
   :driving-method			:stop-and-go
   :default-sensor-payload		'navcam-payload
   :downlink-rate			400000
-  :downlink-latency			10
-  :uplink-latency			10
+  :downlink-latency			(+ 10 1.3)
+  :uplink-latency			(+ 10 1.3)
 
   :navcam-payload			(/ (* *navcam-bits* 2) 2 4) ;stereo, subframing=2, compression=4
   :hazcam-payload			(/ (* *hazcam-bits* 2) 4) ;stereo, subframing=1, compression=4
@@ -225,6 +177,9 @@
   :hazard-eval-payload			(* 4 2 *navcam-bits*) ;4 stereo pairs
   :hazard-eval-time			120
 
+  :hazard-encounter-trigger-rate        0
+  :hazard-encounter-eval-time           120
+
   :bumper-trigger-rate			(/ 2.0 250) ;2 per 250 m
   :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
   :bumper-eval-time			300
@@ -234,6 +189,8 @@
   :post-autonomy-payload		(* 2 *navcam-bits*)
   :path-multiplier			5
   )
+
+#|
 
 (define-case BALANCED "2 Nav cams on mast; 4 Haz cams w/4 structured lights on chassis; 1 Fish eye lens under chassis; 3 flood lights"
   :design-case				2 
@@ -398,7 +355,6 @@
   :post-autonomy-payload		(* 2 *navcam-bits*)
   :path-multiplier			4
   )
-
 
 (define-case BAL-HIGH-LAT "2 Nav cams on mast; 4 Haz cams w/4 structured lights on chassis; 1 Fish eye lens under chassis"
   :design-case				5 
@@ -604,6 +560,283 @@
   :post-autonomy-payload		0
   :path-multiplier			3
   )
+
+|#
+
+(define-case TEST-CASE "AoA2"
+  :design-case				20
+  :navcam-bits				(* 1024 1024 12) ;one full image
+  :hazcam-bits				(* 512 512 12) ;one full image
+  :belly-bits				(* 0 0 12)
+  :lidar-bits				0
+  :bumper-bits				0
+
+  :driving-method			:stop-and-go
+  :default-sensor-payload		'navcam-payload
+  :downlink-rate			60000
+  :downlink-latency			(+ 10 1.3)
+  :uplink-latency			(+ 10 1.3)
+
+  :navcam-payload			(/ (* *navcam-bits* 2) 2 4.0) ;not-stereo, subframing=2, compression=4
+  :hazcam-payload			(/ (* 2 *hazcam-bits*) 1 10.0) ;NOTE: Assuming same compression
+  :belly-payload			(/ *belly-bits* 1)
+  :lidar-payload			0
+  :bumper-payload			0
+  
+;; Consider breaking this into (a) distance that's safe to drive and (b) distance that one can see
+
+  :lookahead-distance-day		4.5 ; lunokhod was 4.3m w better lighting
+  :lookahead-distance-night		1 ; think about these again (night driving=>lower dynamic range=>better quality images
+  :driver-decision-time-day		90 ; 70   ; 2.5*90 = a*1.5 + b
+  :driver-decision-time-night		120 
+  :rt-science-consultation-time		120
+  :rt-science-consultation-rate		0; (/ 1.0 50)
+
+;; We need to think about a proper fudge factor to account for the difference between rails and science stations
+
+  :hazard-trigger-rate			0
+  :hazard-eval-payload			(* 2 *hazcam-bits*);
+  :hazard-eval-time			120
+
+  :bumper-trigger-rate			0
+  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
+  :bumper-eval-time			300
+
+  :hazard-encounter-trigger-rate        0
+  :hazard-encounter-eval-time           120
+
+  :onboard-processing-time		0 
+  :length-of-autonomous-traverse	0 
+  :post-autonomy-payload		0
+  :path-multiplier			2.5
+  )
+
+(define-case CASE-1 "AoA2"
+  :design-case				20
+  :navcam-bits				(* 1024 1024 12) ;one full image
+  :hazcam-bits				(* 512 512 12) ;one full image
+  :belly-bits				(* 0 0 12)
+  :lidar-bits				0
+  :bumper-bits				0
+
+  :driving-method			:stop-and-go
+  :default-sensor-payload		'navcam-payload
+  :downlink-rate			60000
+  :downlink-latency			(+ 10 1.3)
+  :uplink-latency			(+ 10 1.3)
+
+  :navcam-payload			(/ (* *navcam-bits* 1) 2 10) ;not-stereo, subframing=2, compression=10 (appropriate for humans)
+  :hazcam-payload			(/ (* 2 *hazcam-bits*) 1 10) ;NOTE: Assuming same compression
+  :belly-payload			(/ *belly-bits* 1)
+  :lidar-payload			0
+  :bumper-payload			0
+  
+;; Consider breaking this into (a) distance that's safe to drive and (b) distance that one can see
+
+  :lookahead-distance-day		1.5 ; lunokhod was 4.3m w better lighting
+  :lookahead-distance-night		1 ; think about these again (night driving=>lower dynamic range=>better quality images
+  :driver-decision-time-day		120 ; 70   ; 2.5*90 = a*1.5 + b
+  :driver-decision-time-night		120 
+  :rt-science-consultation-time		120
+  :rt-science-consultation-rate		(/ 1.0 50)
+
+;; We need to think about a proper fudge factor to account for the difference between rails and science stations
+
+  :hazard-trigger-rate			(/ 1.0 5)
+  :hazard-eval-payload			(* 2 *hazcam-bits*);
+  :hazard-eval-time			120
+
+  :bumper-trigger-rate			0
+  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
+  :bumper-eval-time			300
+
+  :hazard-encounter-trigger-rate        (/ 1.0 5)
+  :hazard-encounter-eval-time           120
+
+  :onboard-processing-time		0 
+  :length-of-autonomous-traverse	0 
+  :post-autonomy-payload		(* 2 *navcam-bits*)
+  :path-multiplier			3.5
+  )
+
+(define-case CASE-2 "Buyback Case 2"
+  :design-case				20
+  :navcam-bits				(* 1024 1024 12) ;one full image
+  :hazcam-bits				(* 512 512 12) ;one full image
+  :belly-bits				(* 1024 1024 12)
+  :lidar-bits				0
+  :bumper-bits				0
+
+  :driving-method			:stop-and-go
+  :default-sensor-payload		'navcam-payload
+  :downlink-rate			60000
+  :downlink-latency			(+ 10 1.3)
+  :uplink-latency			(+ 10 1.3)
+
+  :navcam-payload			(/ (* *navcam-bits* 2) 2 4) ;not-stereo, subframing=2, compression=10 (appropriate for humans)
+  :hazcam-payload			(/ (* 8 *hazcam-bits*) 1 4) ;NOTE: Assuming same compression
+  :belly-payload			(/ *belly-bits* 1)
+  :lidar-payload			0
+  :bumper-payload			0
+
+  :lookahead-distance-day		4.5 ; lunokhod was 4.3m w better lighting
+  :lookahead-distance-night		4.5 ; think about these again (night driving=>lower dynamic range=>better quality images
+  :driver-decision-time-day		90
+  :driver-decision-time-night		90
+  :rt-science-consultation-time		120
+  :rt-science-consultation-rate		(/ 1.0 50)
+
+  :hazard-trigger-rate			(/ 1.0 20)
+  :hazard-eval-payload			*hazcam-payload*
+  :hazard-eval-time			90
+
+  :bumper-trigger-rate			0
+  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
+  :bumper-eval-time			300
+
+  :hazard-encounter-trigger-rate        (/ 1.0 5)
+  :hazard-encounter-eval-time           120
+
+  :onboard-processing-time		0 
+  :length-of-autonomous-traverse	0 
+  :post-autonomy-payload		(* 2 *navcam-bits*)
+  :path-multiplier			2.5
+  )
+
+(define-case CASE-3 "Buyback Case 3"
+  :design-case				20
+  :navcam-bits				(* 1024 1024 12) ;one full image
+  :hazcam-bits				(* 512 512 12) ;one full image
+  :belly-bits				(* 1024 1024 12)
+  :lidar-bits				0
+  :bumper-bits				0
+
+  :driving-method			:stop-and-go
+  :default-sensor-payload		'navcam-payload
+  :downlink-rate			60000
+  :downlink-latency			(+ 10 1.3)
+  :uplink-latency			(+ 10 1.3)
+
+  :navcam-payload			(/ (* *navcam-bits* 1) 2 4) ;not-stereo, subframing=2, compression=10 (appropriate for humans)
+  :hazcam-payload			(/ (* 2 *hazcam-bits*) 1 4) ;NOTE: Assuming same compression
+  :belly-payload			(/ *belly-bits* 1)
+  :lidar-payload			0
+  :bumper-payload			0
+
+  :lookahead-distance-day		5.5
+  :lookahead-distance-night		4.5
+  :driver-decision-time-day		60
+  :driver-decision-time-night		60 
+  :rt-science-consultation-time		120
+  :rt-science-consultation-rate		(/ 1.0 50)
+
+  :hazard-trigger-rate			(/ 1.0 25)
+  :hazard-eval-payload			(* 8 *hazcam-bits*);
+  :hazard-eval-time			60
+
+  :bumper-trigger-rate			0
+  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
+  :bumper-eval-time			300
+
+  :hazard-encounter-trigger-rate        (/ 1.0 5)
+  :hazard-encounter-eval-time           120
+
+  :onboard-processing-time		0 
+  :length-of-autonomous-traverse	0 
+  :post-autonomy-payload		(* 2 *navcam-bits*)
+  :path-multiplier			2.5
+  )
+
+(define-case CASE-4 "Buyback Case 4"
+  :design-case				20
+  :navcam-bits				(* 1024 1024 12) ;one full image
+  :hazcam-bits				(* 512 512 12) ;one full image
+  :belly-bits				(* 1024 1024 12)
+  :lidar-bits				0
+  :bumper-bits				0
+
+  :driving-method			:stop-and-go
+  :default-sensor-payload		'navcam-payload
+  :downlink-rate			60000
+  :downlink-latency			(+ 10 1.3)
+  :uplink-latency			(+ 10 1.3)
+
+  :navcam-payload			(/ (* *navcam-bits* 1) 2 4) ;not-stereo, subframing=2, compression=10 (appropriate for humans)
+  :hazcam-payload			(/ (* 2 *hazcam-bits*) 1 4) ;NOTE: Assuming same compression
+  :belly-payload			(/ *belly-bits* 1)
+  :lidar-payload			0
+  :bumper-payload			0
+
+  :lookahead-distance-day		4.5
+  :lookahead-distance-night		4.5
+  :driver-decision-time-day		90
+  :driver-decision-time-night		90 
+  :rt-science-consultation-time		120
+  :rt-science-consultation-rate		(/ 1.0 50)
+
+  :hazard-trigger-rate			(/ 1.0 25)
+  :hazard-eval-payload			(* 7 *hazcam-bits*);
+  :hazard-eval-time			90
+
+  :bumper-trigger-rate			0
+  :bumper-eval-payload			(+ (* 6 2 *hazcam-bits*) (* 5 2 *navcam-bits*)) ;11 stereo pairs
+  :bumper-eval-time			300
+
+  :hazard-encounter-trigger-rate        (/ 1.0 5)
+  :hazard-encounter-eval-time           120
+
+  :onboard-processing-time		0 
+  :length-of-autonomous-traverse	0 
+  :post-autonomy-payload		(* 2 *navcam-bits*)
+  :path-multiplier			2.2
+  )
+
+(define-case CASE-5 "Buyback Case 5 (RP-like)"
+  :design-case				20
+  :navcam-bits				(* 1024 1024 12) ;one full image
+  :hazcam-bits				(* 512 512 12) ;one full image
+  :belly-bits				(* 1024 1024 12)
+  :lidar-bits				0
+  :bumper-bits				0
+
+  :driving-method			:stop-and-go
+  :default-sensor-payload		'navcam-payload
+  :downlink-rate			60000
+  :downlink-latency			(+ 10 1.3)
+  :uplink-latency			(+ 10 1.3)
+
+  :navcam-payload			(/ (* *navcam-bits* 1) 2 4) ;not-stereo, subframing=2, compression=10 (appropriate for humans)
+  :hazcam-payload			(/ (* 2 *hazcam-bits*) 1 4) ;NOTE: Assuming same compression
+  :belly-payload			(/ *belly-bits* 1)
+  :lidar-payload			0
+  :bumper-payload			0
+
+  :lookahead-distance-day		6.5
+  :lookahead-distance-night		6.5
+  :driver-decision-time-day		60
+  :driver-decision-time-night		60 
+  :rt-science-consultation-time		120
+  :rt-science-consultation-rate		(/ 1.0 50)
+
+  :hazard-trigger-rate			(/ 1.0 75)
+  :hazard-eval-payload			(* 7 *hazcam-bits*);
+  :hazard-eval-time			60
+
+  :bumper-trigger-rate			(/ 1.0 20)
+  :bumper-eval-payload			(+ (* 2 *hazcam-bits*) (* 2 *navcam-bits*))
+  :bumper-eval-time			60
+
+  :hazard-encounter-trigger-rate        (/ 1.0 5)
+  :hazard-encounter-eval-time           120
+
+  :onboard-processing-time		0 
+  :length-of-autonomous-traverse	0 
+  :post-autonomy-payload		(* 2 *navcam-bits*)
+  :path-multiplier			2.2
+  )
+
+
+
 
 (defun RECONSTRUCT-CASE ()
   `(define-case ,*design-case-name* "Reconstructed case"

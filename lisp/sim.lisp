@@ -170,15 +170,16 @@
   (format stream "{~a :at ~8,3f}" (type-of a) (receive-time a)))
 
 (defmethod DISPATCH ((a ACTION))
+  (setq *time* (receive-time a))
   (funcall (action-closure a)))
 
 (defmethod RECEIVE ((a ACTOR) (msg ACTION))
   (funcall (action-closure msg)))
 
-(defmacro DO-AT-TIME (actor time &rest statements)
+(defmacro DO-AT-TIME (actor time &body statements)
   `(enqueue *events* (make-instance 'action :actor ,actor :time ,time :closure #'(lambda () ,@statements))))
 
-(defmacro DO-LATER (actor delta &rest statements)
+(defmacro DO-LATER (actor delta &body statements)
   `(do-at-time ,actor (+ *time* ,delta) ,@statements))
 
 
@@ -187,6 +188,12 @@
 ;;;
 
 (setq *EVENTS* (make-empty-queue #'receive-time)) ;needs to be after receive-time is defined
+
+(defun DESCRIBE-EVENT-QUEUE ()
+  (format t "Event queue ---~%")
+  (dolist (x (queue-events *events*))
+    (describe x))
+  (format t "----~%"))
 
 ;;; Event queue filtering
 
@@ -218,7 +225,10 @@
 		(trace! 4 ":dispatch ~a" msg))
 	    (when tick (funcall tick))
 	    (when interruption (funcall interruption))
-	    (dispatch msg))))
+	    (dispatch msg)))
+  (when (empty-queue? *events*)
+    (format t "Stopping due to empty queue"))
+  )
 
 ;;;
 ;;; Utility Functions

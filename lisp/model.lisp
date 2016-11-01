@@ -9,11 +9,11 @@
 (define-input *DESIGN-CASE-NAME* 'baseline)		;
 
 ;;; Fixed driving constants
-(defvar *DRIVING-DISTANCE* 1000)		        ; m
+(defvar *DRIVING-DISTANCE* 100)		                ; m MODIFIED
 (defvar *DRIVING-SPEED* 0.1)				; m/s
-(defvar *PSR-1-ENTRY* 500)				; m
+(defvar *PSR-1-ENTRY* 50000)				; m   TURN OFF
 (defvar *PSR-1-LENGTH* 30)				; m
-(defvar *PSR-2-ENTRY* 900)				; m
+(defvar *PSR-2-ENTRY* 90000)				; m  TURN OFF
 (defvar *PSR-2-LENGTH* 100)				; m
 (defvar *SIMULATION-TIME-CUTOFF* (* 3600 24 10))       ;10 days in sec
 (defvar *SIMULATION-DISTANCE-CUTOFF* 999999999)	       ; m
@@ -25,8 +25,8 @@
 
 ;;; COMM
 (define-input *DOWNLINK-RATE* 400000)			; bps
-(define-input *DOWNLINK-LATENCY* 10)			; sec
-(define-input *UPLINK-LATENCY* 10)			; sec
+(define-input *DOWNLINK-LATENCY* (+ 10 1.3))			; sec
+(define-input *UPLINK-LATENCY* (+ 10 1.3))			; sec
 
 ;;; Images
 (define-input *NAVCAM-BITS* 0)				;bits
@@ -49,7 +49,7 @@
 (define-input *LOOKAHEAD-DISTANCE-NIGHT* 4.5)		; meters
 
 ;;; Ground Processing
-(define-input *GROUND-PROCESSING-TIME* 2)		; sec
+(define-input *GROUND-PROCESSING-TIME* 0)		; sec (was 2 sec, but I'm trying to match matlab)
 
 ;;; Ops Team
 (define-input *DRIVER-DECISION-TIME-DAY* 10)		; sec
@@ -162,6 +162,7 @@
 (defclass POST-AUTONOMY-EVAL (message) ())
 (defclass SEND-ROVER-COMMAND (message) ())
 (defclass SEND-HAZARD-PAYLOAD (message) ())
+(defclass SEND-NAV-PAYLOAD (message) ())
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Actors
@@ -186,77 +187,24 @@
     (format stream  " :eval-target ~f" (driver-image-eval-target-time d)))
   (format stream "}"))
 
-(defmethod RECEIVE ((d DRIVER) (image SENSOR-PAYLOAD) &aux (state (state d)))
-  (case state
-    (:IDLE
-     (cond ((hazard-encounter-interrupt? image)
-	    (setf (state d) :evaluating-hazard-encounter)
-	    (send d *rover* (make-instance 'send-hazard-payload) :delay *uplink-latency*))
-	   ((hazard-interrupt? image)
-	    (setf (state d) :evaluating-hazard)
-	    (send d *rover* (make-instance 'send-hazard-payload) :delay *uplink-latency*))
-	   (t
-	    (let ((decision-time (if (in-psr? (sensor-payload-position image)) *driver-decision-time-night* *driver-decision-time-day*)))
-	      (setf (driver-image d) image)
-	      (setf (driver-image-under-evaluation d) image)
-	      (setf (driver-image-eval-target-time d) (+ *time* decision-time))
-	      (set-state d :evaluating-image)
-	      (send-wakeup d :delay decision-time)))))
-    ((:EVALUATING-IMAGE
-      :EVALUATING-HAZARD
-      :EVALUATING-HAZARD-ENCOUNTER) ;When there is already an image, don't change the driver's attention
-     (setf (driver-image d) image))
-    (:DRIVING-TO-PSR-EDGE
-     (when (in-psr? (sensor-payload-position image))
-       ;; Should get a panorama, but I'm just going to take longer to evaluate it.
-       (send d d (make-instance 'authorized-to-enter-psr) :delay *enter-psr-decision-time*)
-       (set-state d :waiting-for-authorization-to-enter-psr)))
-    (:WAITING-FOR-AUTHORIZATION-TO-ENTER-PSR)))
+(defmethod RECEIVE ((d DRIVER) (image SENSOR-PAYLOAD))
+  (let ((decision-time *driver-decision-time-day*)
+	(target (+ (sensor-payload-position image)
+		   (drive-command-distance d))))
+    (if (hazard-interrupt? image)
+	(send d *rover* (make-instance 'send-hazard-payload) :delay (+ decision-time *uplink-latency*))
+	(send d *rover* (make-instance 'drive-command :target target) :delay (+ decision-time *uplink-latency*)))))
 
 (defmethod RECEIVE ((d DRIVER) (image HAZARD-EVAL-PAYLOAD))
-  (do-later d (if (eql (state d) :evaluating-hazard-encounter) *hazard-encounter-eval-time* *hazard-eval-time*)
-	    (setf (state d) :idle)
-	    (send d d (make-instance 'sensor-payload :time-sent (sensor-payload-time-sent image) :position (sensor-payload-position image)) :delay 0)))
+  (let ((decision-time *driver-decision-time-day*)
+	(target (+ (sensor-payload-position image)
+		   (drive-command-distance d))))
+    (send d *rover* (make-instance 'drive-command :target target) :delay (+ decision-time *uplink-latency*))))
 
-(defmethod RECEIVE ((d DRIVER) (authorization AUTHORIZED-TO-ENTER-PSR) &aux (state (state d)))
-  (case state
-    (:WAITING-FOR-AUTHORIZATION-TO-ENTER-PSR
-     (set-state d :idle)) ;release to go after examining the next image pair
-    (otherwise
-     (format T "received authorized to enter while in ~a state~%" (state d))
-     (set-state d :idle))))
-
-(defmethod TICK ((d DRIVER) state)
-  (case state
-    (:IDLE)
-    ((:EVALUATING-IMAGE
-      :BUMPER-HALT)
-     (when (>= *time* (driver-image-eval-target-time d)) ;; Are we finished evaluating an image?
-       (let* ((target (+ (sensor-payload-position (driver-image-under-evaluation d))
-			 (drive-command-distance d)))
-	      (will-enter (will-drive-enter-psr? target (driver-image-under-evaluation d))))
-	 (send d *rover* (make-instance 'drive-command
-					:target (if will-enter (clip-drive-to-psr-edge target) target))
-	       :delay *uplink-latency*)
-	 (incf (driver-commands-sent d))
-	 (cond (will-enter
-		(set-state d :driving-to-psr-edge))
-	       ((and (eql (driver-image d) (driver-image-under-evaluation d)) ;no new images have come
-		     (not (member (state d) '(:driving-to-psr-edge :waiting-for-authorization-to-enter-psr)))) ;we're not waiting to enter a PSR
-		(set-state d :idle))			;we're done
-	       (t
-		(set-state d :evaluating-image)
-		(setf (driver-image-under-evaluation d) (driver-image d))
-		(setf (driver-image-eval-target-time d)
-		      (+ *time* *driver-decision-time-day*)))))))
-    ((:DRIVING-TO-PSR-EDGE
-      :EVALUATING-HAZARD
-      :EVALUATING-HAZARD-ENCOUNTER
-      :WAITING-FOR-AUTHORIZATION-TO-ENTER-PSR))))
+(defmethod TICK ((d DRIVER) state) state)
 
 (defmethod DRIVE-COMMAND-DISTANCE ((d DRIVER))
-  (let ((pos (sensor-payload-position (driver-image-under-evaluation d))))
-    (if (in-psr? pos) *lookahead-distance-night* *lookahead-distance-day*)))
+  *lookahead-distance-day*)
 
 ;; Will this proposed drive transition from outside to inside a PSR?
 (defun WILL-DRIVE-ENTER-PSR? (target image)
@@ -271,93 +219,6 @@
 	 (1+ (* *psr-1-entry* *path-multiplier*)))
 	(t
 	 target))))
-
-;;;
-;;; AUTONOMY-DRIVER
-;;;
-
-(defclass AUTONOMY-DRIVER (actor)
-  ((latest-image :accessor driver-latest-image :initarg :image :initform nil)
-   (commands-sent :accessor driver-commands-sent :initform 0)
-   (post-autonomy-payload-evaluated? :accessor post-autonomy-payload-evaluated? :initform nil)
-   ))
-
-(defmethod PRINT-OBJECT ((d AUTONOMY-DRIVER) stream)
-  (format stream "{~a: :state ~a" (class-name (class-of d)) (state d))
-  (when (driver-latest-image d)
-    (format stream " :image-time ~f" (receive-time (driver-latest-image d))))
-  (format stream "}"))
-
-(defmethod RECEIVE ((d AUTONOMY-DRIVER) (image SENSOR-PAYLOAD))) ;Ignore normal sensor data
-
-(defmethod RECEIVE ((d AUTONOMY-DRIVER) (image POST-AUTONOMY-PAYLOAD) &aux (state (state d)))
-  (setf (driver-latest-image d) image)
-  (case state
-    (:IDLE
-     (cond ((hazard-interrupt? image)
-	    (setf (state d) :evaluating-hazard)
-	    (send d *rover* (make-instance 'send-hazard-payload) :delay *uplink-latency*))
-	   (t
-	    (let ((decision-time (if (in-psr? (sensor-payload-position image)) *driver-decision-time-night* *driver-decision-time-day*)))
-	      (set-state d :evaluating-image)
-	      (send d d (make-instance 'post-autonomy-eval) :delay decision-time)))))
-    (:EVALUATING-IMAGE
-     :EVALUATING-HAZARD)
-    (:DRIVING-TO-PSR-EDGE
-     (let ((decision-time (if (in-psr? (sensor-payload-position image)) *driver-decision-time-night* *driver-decision-time-day*)))
-       (set-state d :evaluating-image)
-       (send d d (make-instance 'post-autonomy-eval) :delay decision-time))
-     (when (in-psr? (sensor-payload-position image))
-       ;; Should get a panorama, but I'm just going to take longer to evaluate it.
-       (send d d (make-instance 'authorized-to-enter-psr) :delay *enter-psr-decision-time*)
-       (set-state d :waiting-for-authorization-to-enter-psr)))
-    (:WAITING-FOR-AUTHORIZATION-TO-ENTER-PSR)
-    (:WAITING-FOR-POST-AUTONOMY-EVAL)))
-
-(defmethod RECEIVE ((d AUTONOMY-DRIVER) (image HAZARD-EVAL-PAYLOAD))
-  (do-later d *hazard-eval-time*
-	    (setf (state d) :idle)
-	    (send d d (make-instance 'POST-AUTONOMY-PAYLOAD :time-sent (sensor-payload-time-sent image) :position (sensor-payload-position image)) :delay 0)))
-
-(defmethod RECEIVE ((d AUTONOMY-DRIVER) (msg POST-AUTONOMY-EVAL) &aux (state (state d)))
-  (setf (post-autonomy-payload-evaluated? d) t)
-  (case state
-    (:idle)
-    ((:evaluating-image :waiting-for-post-autonomy-eval)
-     (send d d (make-instance 'send-rover-command) :delay 0))
-    (:driving-to-psr-edge)
-    (:waiting-for-authorization-to-enter-psr)))
-
-(defmethod RECEIVE ((d AUTONOMY-DRIVER) (authorization AUTHORIZED-TO-ENTER-PSR) &aux (state (state d)))
-  (case state
-    (:idle)
-    (:evaluating-image)
-    (:driving-to-psr-edge)
-    (:waiting-for-authorization-to-enter-psr
-     (cond ((post-autonomy-payload-evaluated? d)
-	    (send d d (make-instance 'send-rover-command) :delay 0))	    
-	   (t
-	    (set-state d :waiting-for-post-autonomy-eval))))
-    (:waiting-for-post-autonomy-eval)))
-
-(defmethod RECEIVE ((d AUTONOMY-DRIVER) (msg SEND-ROVER-COMMAND))
-  (unless (driver-latest-image d)
-    (error "shouldn't get here 1"))
-  (setf (post-autonomy-payload-evaluated? d) nil)
-  (let* ((target (+ (sensor-payload-position (driver-latest-image d)) *autonomous-waypoint-distance*))
-	 (will-enter (will-drive-enter-psr? target (driver-latest-image d))))
-    (send d *rover* (make-instance 'waypoint-command
-				   :target (if will-enter (clip-drive-to-psr-edge target) target))
-	  :delay *uplink-latency*)
-    (incf (driver-commands-sent d))
-    (cond (will-enter
-	   (set-state d :driving-to-psr-edge))
-	  (t
-	   (set-state d :idle)))))
-
-;;; Not using this
-(defmethod TICK ((d AUTONOMY-DRIVER) state) (declare (ignore state)))
-
 
 ;;;
 ;;; GDS & RTSCI
@@ -379,10 +240,11 @@
 (defmethod RECEIVE ((r REALTIME) (image SENSOR-PAYLOAD))
   (unless (realtime-ignoring-images r)
     (cond ((requires-consultation *realtime* image)
+	   (print 'doing-realtime)
 	   (setf (realtime-ignoring-images r) t)
 	   (send r *driver* image :delay *rt-science-consultation-time*)
 	   (do-later r
-	       *rt-science-consultation-time*
+	     *rt-science-consultation-time*
 	     (setf (realtime-ignoring-images r) nil)
 	     (incf (realtime-consultation-count r))))
 	  (t
@@ -390,8 +252,8 @@
 
 ;;; Require a consultation every *rt-science-consultation-rate* meters
 (defmethod REQUIRES-CONSULTATION ((r REALTIME) (image SENSOR-PAYLOAD))
-  (>= (* (sensor-payload-position image) *rt-science-consultation-rate*) 
-      (realtime-consultation-count r)))
+  (> (* (sensor-payload-position image) *rt-science-consultation-rate*)
+     (realtime-consultation-count r)))
 
 
 ;;;
@@ -407,86 +269,25 @@
    (default-sensor-payload :accessor rover-default-sensor-payload :initarg :default-sensor-payload :initform *default-sensor-payload*)
    ))
 
-(defmethod RECEIVE ((r ROVER) (msg WAKEUP-SENSORS))
-  (let* ((pld (make-instance (next-sensor-payload-type r) :position (rover-position r) :time-sent *time*))
-	 (transmission-time (time-to-downlink-sensor-payload pld))
-	 (downlink-latency (sensor-payload-latency pld)))
-    (do-later r
-	(sensor-payload-sampling-delay pld) ;delay by the time it takes to capture the sensor data.  Always 0 for now.
-	(send r *gds* pld :delay downlink-latency)
-	(send r r (make-instance 'wakeup-sensors) :delay (max transmission-time 1.0)))))
-
 (defmethod RECEIVE ((r ROVER) (msg DRIVE-COMMAND))
-  (let ((delta (max 0 (- (drive-command-target msg) (rover-position r)))))
-    (cond ((> delta 0)
-	   (set-state r :driving)
-	   (setf (rover-target r) (drive-command-target msg))
-	   (send r r (make-instance 'wakeup) :delay (/ delta *driving-speed*))) ;wakeup when we expect to get there
-	  (t
-	   (set-state r :waiting)))))
+  (let* ((delta (max 0 (- (drive-command-target msg) (rover-position r))))
+	 (arrival-delay (/ delta *driving-speed*)))
+    (do-later r arrival-delay
+	      (incf (rover-position r) delta)
+	      (receive r (make-instance 'SEND-NAV-PAYLOAD)))))
 
-(defmethod TICK ((r ROVER) state &aux delta)
-  (unless (eql 0 (setq delta (- *time* (last-tick r))))
-    (case state
-      (:driving
-       (incf (rover-driving-time r) delta)
-       (incf (rover-position r) (* delta *driving-speed*))
-       (when (>= (rover-position r) (rover-target r))
-	 (set-state r :waiting)))
-      (:waiting
-       (incf (rover-waiting-time r) delta)))))
+(defmethod RECEIVE ((r ROVER) (msg SEND-NAV-PAYLOAD))
+  (let ((pld (make-instance 'NAVCAM-PAYLOAD :position (rover-position r) :time-sent *time*)))
+    (send r *gds* pld :delay (+ *downlink-latency* (time-to-downlink-sensor-payload pld)))))
 
-(defmethod NEXT-SENSOR-PAYLOAD-TYPE ((r ROVER))
-  (if (null (rover-sensor-queue r))
-      (rover-default-sensor-payload r)
-      (pop (rover-sensor-queue r))))
+(defmethod RECEIVE ((r ROVER) (msg SEND-HAZARD-PAYLOAD))
+  (let ((pld (make-instance 'HAZARD-EVAL-PAYLOAD :position (rover-position r) :time-sent *time*)))
+    (send r *gds* pld :delay (+ *downlink-latency* (time-to-downlink-sensor-payload pld)))))
+
+(defmethod TICK ((r ROVER) state) state)
 
 (defmethod PRINT-OBJECT ((r ROVER) stream)
   (format stream "{~a: :state ~a :pos ~f :target ~f}" (class-name (class-of r)) (state r) (rover-position r) (rover-target r)))
-
-(defmethod RECEIVE ((r ROVER) (msg SEND-HAZARD-PAYLOAD))
-  (push 'hazard-eval-payload (rover-sensor-queue r)))
-
-;;;
-;;; Autonomous Rover
-;;;
-
-(defclass AUTONOMOUS-ROVER (rover)
-  ((waypoint :accessor rover-waypoint :initform nil)))	;if not nil, then we're driving autonomously
-
-;; This doesn't send all of the images down.  Reconsider this NOTE!!!!!!!!!!!!
-(defmethod RECEIVE ((r AUTONOMOUS-ROVER) (msg WAKEUP-SENSORS))
-  (let* ((pld (make-instance (next-sensor-payload-type r) :position (rover-position r) :time-sent *time*))
-	 (transmission-time (time-to-downlink-sensor-payload pld))
-	 (downlink-latency (sensor-payload-latency pld)))
-    (do-later r
-	(sensor-payload-sampling-delay pld) ;delay by the time it takes to capture the sensor data.  Always 0 for now.
-      (when (not (typep pld 'navcam-payload))
-	(send r *gds* pld :delay downlink-latency))
-      (send r r (make-instance 'wakeup-sensors) :delay (max transmission-time 1.0)))))
-
-(defmethod RECEIVE ((r AUTONOMOUS-ROVER) (msg WAKEUP-AUTONOMY))
-  (when (rover-waypoint r)
-    (send r r (make-instance 'navcam-payload :position (rover-position r) :time-sent *time*) :delay *onboard-processing-time*)))
-
-(defmethod RECEIVE ((r AUTONOMOUS-ROVER) (msg NAVCAM-PAYLOAD))
-  (when (rover-waypoint r)
-    (send r r (make-instance 'drive-command :target (+ (sensor-payload-position msg) *length-of-autonomous-traverse*))
-	  :delay 0)
-    (send r r (make-instance 'wakeup-autonomy) :delay 0)))
-
-(defmethod RECEIVE ((r AUTONOMOUS-ROVER) (msg WAYPOINT-COMMAND))
-  (setf (rover-waypoint r) (drive-command-target msg))
-  (send r r (make-instance 'wakeup-autonomy) :delay 0))
-
-(defmethod TICK :after ((r AUTONOMOUS-ROVER) state)
-  (declare (ignore state))
-  (when (and (rover-waypoint r)
-	     (>= (rover-position r) (rover-waypoint r)))
-    (setf (rover-waypoint r) nil)
-    (let ((pld (make-instance 'post-autonomy-payload :position (rover-position r))))
-      (send r *driver* pld :delay (sensor-payload-latency pld))))) ;straight to the driver.
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Interruptions
@@ -497,6 +298,9 @@
 (defvar *HAZARD-ENCOUNTER* '())
 
 (defun GENERATE-HAZARDS ()
+  ;; Seed the random number generator to some constant value
+  (setq *random-state*
+	(read-from-string "#.(CCL::INITIALIZE-MRG31K3P-STATE 655751894 580956323 1852528697 1341761813 2126917002 982945801))"))
   (let* ((d (* *driving-distance* *path-multiplier*))
 	 (num-hazards (floor (* d *hazard-trigger-rate*)))
 	 (num-bumps (floor (* d *bumper-trigger-rate*)))
@@ -548,14 +352,6 @@
     (do-later r (time-to-downlink-sensor-payload m) (set-state r :idle))
     (send r r (make-instance 'wakeup-sensors) :delay (+ (time-to-downlink-sensor-payload m) 0.1))))
 
-(defmethod RECEIVE ((r AUTONOMOUS-ROVER) (msg BUMPER-INTERRUPT))
-  (abandon-plans *events* r)
-  (set-state r :bumper-halt)
-  (let ((m (make-instance 'bumper-eval-payload :position (rover-position r))))
-    (send r *gds* m :delay (sensor-payload-latency m))
-    (do-later r (time-to-downlink-sensor-payload m) (set-state r :idle))
-    (send r r (make-instance 'wakeup-sensors) :delay (+ (time-to-downlink-sensor-payload m) 0.1))))
-
 (defmethod RECEIVE ((g GDS) (msg BUMPER-EVAL-PAYLOAD))
   ;(format t "gds received ~a~%" msg)
   (incf (gds-total-downlink-bits g) (sensor-payload-bits msg)) ;overrides method where msg is SENSOR-PAYLOAD
@@ -568,12 +364,6 @@
   (setf (driver-image-under-evaluation d) msg)
   (setf (driver-image d) msg)
   (send d d (make-instance 'wakeup) :delay *bumper-eval-time*))
-
-(defmethod RECEIVE ((d AUTONOMY-DRIVER) (msg BUMPER-EVAL-PAYLOAD))
-  (set-state d :bumper-halt)
-  (abandon-plans *events* d)
-  (setf (driver-latest-image d) msg)
-  (send d d (make-instance 'send-rover-command) :delay *bumper-eval-time*))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Object properties based on rover position
@@ -612,25 +402,40 @@
 	   (setf *driver* (make-instance 'driver :state :idle))))
     (setf *realtime* (make-instance 'realtime))
     (setf *gds* (make-instance 'gds))
-    (send *rover* *rover* (make-instance 'wakeup-sensors))
-    (run-simulation :terminate (if (fboundp 'termination-condition)
-				   (symbol-function 'termination-condition)
-				   #'(lambda () (or (>= (rover-position *rover*) *drive-distance-along-path*)
+    (send *rover* *rover* (make-instance 'send-nav-payload))
+    (run-simulation :terminate (cond ((fboundp 'termination-condition)
+				      (symbol-function 'termination-condition))
+				     (t
+				      #'(lambda () (or (>= (rover-position *rover*) *drive-distance-along-path*)
+						       (>= (rover-position *rover*) *simulation-distance-cutoff*)
+						       (>= *time* *simulation-time-cutoff*))))
+				     (t
+				      #'(lambda () 
+					  (when (or (>= (rover-position *rover*) *drive-distance-along-path*)
 						    (>= (rover-position *rover*) *simulation-distance-cutoff*)
-						    (>= *time* *simulation-time-cutoff*))))
+						    (>= *time* *simulation-time-cutoff*))
+					    (format t "Terminating...~%")
+					    t))))
 		    :interruption 'check-for-interruption)
+
+;    (format t "(time sim-tim-cutoff)=~s~%" (list *time* *simulation-time-cutoff*))
+;    (format t "rover-position=~s~%" (rover-position *rover*))
+;    (format t "*simulation-distance-cutoff*=~s~%" *simulation-distance-cutoff*)
+;    (format t "*drive-distance-along-path*=~s~%" *drive-distance-along-path*)
+;    (format t "(fboundp 'termination-condition)=~s~%" (fboundp 'termination-condition))
+
     (setf *time-to-drive-scenario* (/ *time* 60.0))
     (setf *speed-made-good* (/ *driving-distance* *time*))
     (setf *speed-made-good-along-path* (/ (rover-position *rover*) *time*))
     (setf *rover-driving-time* (rover-driving-time *rover*))
     (setf *rover-waiting-time* (rover-waiting-time *rover*))
-    (setf *duty-cycle* (/ (rover-driving-time *rover*) (+ (rover-driving-time *rover*) (rover-waiting-time *rover*))))
+;;    (setf *duty-cycle* (/ (rover-driving-time *rover*) (+ (rover-driving-time *rover*) (rover-waiting-time *rover*))))
     (setf *time-to-drive-scenario* (/ *time* 3600.0))
     (setf *average-cycle-time* (if (zerop (driver-commands-sent *driver*)) 'invalid (/ *time* (driver-commands-sent *driver*))))
     (setf *final-rover-position* (rover-position *rover*))
     (setf *total-downlink* (/ (gds-total-downlink-bits *gds*) (* 8.0 1000000)))
     (setf *final-time* *time*)
-    *speed-made-good-along-path*))
+    *speed-made-good*))
 
 (defun PRINT-MODEL ()
   (run-model)
