@@ -1,0 +1,135 @@
+Cases to run
+* Compare all cases, presented as table
+* Compare all cases, presented as bar charts
+
+
+
+Changes from Monday (all done)
+*length-of-autonomous-traverse* is the cycle distance
+* new parameter that's 50m (*autonomous-waypoint-distance*)
+* same lidar compression all around (already done)
+* Set case 6 nav compression to 6 (already done)
+
+Changes from Ryan
+
+* nav-payload -> navcam-payload everywhere
+* haz-payload -> hazcam-payload everywhere
+
+1: high latency kitchen sink - latency changed to 120						; changed
+2: high latency balance - bumper bits increased to match input					; ?? I think it's right (and not used)
+3: high latency kitchen sink - lidar on mast, made it the primary payload			; NO.  Cell H7 indicates that the autonomy uses stereo  images
+
+   The post-autonomy-payload isn't in the spreadsheet and needs to be discussed.
+   There was an error in the :length-of-autonomous-traverse field.  It's now 8.
+
+   I'm not sure what length-of-autonomous
+
+4: kitchen sink and kitchen sink a- navcam sub framing =1					; changed
+5: kitchen sink and kitchen sink a- navcam compression =6					; changed
+6: kitchen sink and kitchen sink a- hazard trigger rate 1/50					; already that
+7: kitchen sink and kitchen sink a- bumper trigger rate 1/500					; already that
+8: kitchen sink and kitchen sink a- bumper eval time 150					; changed
+9: kitchen sink and kitchen sink a- path length 3						; changed
+
+10: lidars galore - added compression=2 for lidar_payload					; changed (WHAT ABOUT OTHER LIDARS? - changed all)
+11: lidars galore - path length =5								; changed
+
+12: balanced high latency - hazcam bits 512x512							; changed
+13: balanced high latency - RT science consult time = 180					; changed
+14: balanced high latency - hazard trigger rate = 1/20						; changed (WOW)
+15: balanced high latency - hazard images match to spreadsheet					; changed (+ (* 4 2 *navcam-bits*) (* 4 *hazcam-bits*) *belly-bits*)
+16: balanced high latency - path length = 4							; changed
+
+17: high latency kitchen sink - hazcam bit to 512x512						; changed
+18: high latency kitchen sink - lidar bits to 128x128x 24					; changed
+19: high latency kitchen sink - driver decision time to 1 sec					; changed day and night
+20: high latency kitchen sink - RT science consult time = 180					; changed
+21: high latency kitchen sink - Bumper eval time = 60						; changed
+22: high latency kitchen sink - Onboard proc time = 20						; changed
+23: high latency kitchen sink - path length =3							; already 3
+
+24: bumper car - subframing = 1									; changed
+25: bumper car - RT science consult time = 180							; changed
+26: bumper car - bumper trigger rate 2/250							; changed
+27: bumper car - bumper eval payload to 22 images						; changed
+
+28: low bandwidth kitchen sink - nav payload compression = 6					; changed (WHY DIFFERENT IMAGE COMPRESSIONS?)
+29: low bandwidth kitchen sink - hazard trigger rate 1/50					; changed
+30: low bandwidth kitchen sink - bumper trigger rate 1/500					; changed
+31: low bandwidth kitchen sink - path length = 3						; changed
+32: low bandwidth kitchen sink - haz images payload, 3 stereo pairs				; DON'T UNDERSTAND this or the spreadsheet
+33: low bandwidth kitchen sink - bumper images payload, 2 haz, 1 fish eye lens			; changed
+34: low bandwidth kitchen sink - belly bits added in						; changed to (* 1024 1024 12)
+35: low bandwidth kitchen sink - hazcam bits 512x512						; changed
+
+36: low bandwidth balanced - hazcam bits to 512x512						; changed
+37: low bandwidth balanced - downlink rate 60000						; changed
+38: low bandwidth balanced - lidar 16 bits/pixel						; changed
+39: low bandwidth balanced - compression =2							; ?? lidar compression?
+40: low bandwidth balanced - look ahead distance 9						; changed, day and night
+41: low bandwidth balanced - driver decision time =1						; changed (WHY is RTSCI consult time less here?)
+42: low bandwidth balanced - hazard trigger prob 1/100						; changed
+43: low bandwidth balanced - bumper trigger prob 1/400						; changed
+44: low bandwidth balanced - bumper eval time =150						; changed
+45: low bandwidth balanced - path length=3							; changed
+
+Questions:
+There are two cases with LIDAR's as the primary driving sensor, does your model ignore the navcams in these cases?
+
+The model has a parameter which is what type of data to capture and bundle into a single message (that would be multiple actual packets).  For LIDAR-oriented cases, that
+message includes only LIDAR data.  Therefore, during driving, no images are coming down at all, just the LIDAR data.  In other words, the science images per meter idea isn't
+implemented (and it's not in the spreadsheet either).
+
+There is a parameter for the amount of time it takes to capture the bundle.  Right now, that's always 0 sec.  There's always a bundle being collected and transmitted.  As soon
+as one finishes transmitting, the next collection starts.  This stream of navigation messages can be interrupted by saying that the next one in the sequence will be of a
+different message type (usually larger).  For instance, when the bumper triggers, a larger bundle of data is scheduled as the next 'navigation' bundle.  When that's done, it
+goes back to Collecting and sending the default type for that case.
+
+Autonomous rovers are different in that they don't send their navigation image pairs to the ground.  Right now, they're just sending a larger bundle when they reach the
+commanded waypoint.  This should probably be modified, but I'm not sure whether they should transmit images or depth & hazard maps.  What changes make sense here depends on
+what we do with modeling science images during driving.
+
+Why does the HAZCAM_PAYLOAD=0 across the board?
+
+Uh.  Umm.  That's a bug.  The parameter declared in the model is *hazcam-payload*, while the parameter in the cases file entries is :haz-payload, which turns into
+*haz-payload*.  So the wrong variable is getting the value.  The effect is that the hazard camera(s) aren't being accounted for in downlink.
+
+Did we have hazard response time as an input or did you add it?  I think we need to discuss this one a bit.
+
+I added it.  I'm in 269-137 at 4-4530.  I'll be walking to lunch soon but around most of the afternoon.  My cell is 650-269-1904.
+
+In LIDARs galore input, should LIDAR_BITS be *24 for 24 bits/pixel?
+
+Yes.  Garbage in,  garbage out. 
+
+Sorry this took a while, was a bit more to fix.
+
+No problem.  This is great.
+
+-- 
+Ryan Vaughan
+Resource Prospector, Mission Systems Engineer
+NASA Ames Research Center
+MS 232-21 (Bldg N232, Room 246)
+Moffett Field, CA 94035
+office: (650) 604-3109
+
+From: <Shirley>, MARK SHIRLEY <mark.h.shirley@nasa.gov>
+Date: MondayApril62015 10:41 PM
+To: RYAN VAUGHAN <ryan.vaughan@nasa.gov>
+Subject: simulation cases
+
+Ryan,
+  Here are the simulation cases.  The definitions are in the cases.lisp file.  A sample run is in compare-all.txt.
+I'm looking for where I've screwed up the case definitions, and I'm sure there are some places.
+ 
+Here's what I'm getting now.  Note that all of the speeds got a lot lower when I implemented interruptions due to hazards and bumper hits.
+ 
+Some of these orderings make sense, but others don't.  I haven't looked at bumper-car at all, for instance.
+ 
+ 
+ 
+Dr. Mark H Shirley
+RP MOS Systems Engineer
+650-269-1904 (cell, preferred) 650-604-3389 (work)
+ 

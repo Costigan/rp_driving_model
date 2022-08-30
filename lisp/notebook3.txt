@@ -1,0 +1,209 @@
+Uplink latency?
+CCSDS overhead?
+
+
+
+LightRoundTrip = 2.6;
+DownlinkLatency = 10;
+UplinkLatency = 10.0;
+Distance = 1000.0;
+
+SlipFactor = 1.0;
+SubFraming = 2.0;
+
+Options[Rover]={Compression->4.0,
+		DownlinkRate->60000.0,
+		PathMultiplier->2.5,
+
+		Lookahead->4.5,
+		DriveEvalTime->90.0,
+		DrivingSpeed->10.0,
+		DrivingNavImages->2,
+
+		HazardRate->0/5.0,
+		HazardEvalTime->120.0,
+		HazardNavImages->0,
+		HazardHazImages->2,
+		HazardBellyImages->0,
+
+		BumperRate->0.0,
+		BumperEvalTime->60.0,
+		BumperNavImages->4.0,
+		BumperHazImages->2.0,
+		BumperBellyImages->0.0,
+
+		ScienceRate->0/50.0,
+		ScienceEvalTime->120.0};
+
+Rover[x_,OptionsPattern[]]:=Block[{
+      CompressionV=OptionValue[Compression],
+      DownlinkRateV=OptionValue[DownlinkRate],
+      LookaheadV=OptionValue[Lookahead],
+      PathMultiplierV=OptionValue[PathMultiplier],
+
+      DriveEvalTimeV=OptionValue[DriveEvalTime],
+      DrivingSpeedV=OptionValue[DrivingSpeed],
+      DrivingNavImagesV=OptionValue[DrivingNavImages],
+
+      HazardRateV=OptionValue[HazardRate],
+      HazardEvalTimeV=OptionValue[HazardEvalTime],
+      HazardNavImagesV=OptionValue[HazardNavImages],
+      HazardHazImagesV=OptionValue[HazardHazImages],
+      HazardBellyImagesV=OptionValue[HazardBellyImages],
+
+      BumperRateV=OptionValue[BumperRate],
+      BumperEvalTimeV=OptionValue[BumperEvalTime],
+      BumperNavImagesV=OptionValue[BumperNavImages],
+      BumperHazImagesV=OptionValue[BumperHazImages],
+      BumperBellyImagesV=OptionValue[BumperBellyImages],
+
+      ScienceRateV=OptionValue[ScienceRate],
+      ScienceEvalTimeV=OptionValue[ScienceEvalTime],
+
+      PathLength=PathMultiplierV Distance,
+      NavPayload = (1024 1024 12) / (SubFraming CompressionV),
+      HazPayload = (512 512 12) / (SubFraming CompressionV),
+      BellyPayload = (1024 1024 12) / CompressionV,
+      DriveEvents=PathLength/LookaheadV,
+      MetersPerSecond=DrivingSpeedV/100.0,
+
+      DrivingTime=PathLength SlipFactor / DriveEvents / MetersPerSecond,
+      DrivingCycleTime=DrivingTime + LightRoundTrip + (DrivingNavImagesV NavPayload / DownlinkRateV) + DownlinkLatency + DriveEvalTimeV + UplinkLatency,
+      DrivingTotalTime=DriveEvents DrivingCycleTime,
+
+      HazardEvents=PathLength HazardRateV,
+      HazardPayload=(HazardNavImagesV NavPayload) + (HazardHazImagesV HazPayload) + (HazardBellyImagesV BellyPayload),
+      HazardCycleTime=LightRoundTrip + HazardPayload / DownlinkRateV + DownlinkLatency + HazardEvalTimeV + UplinkLatency,
+      HazardTotalTime=HazardEvents HazardCycleTime,
+
+      BumperEvents=PathLength BumperRateV,
+      BumperPayload=(BumperNavImagesV NavPayload) + (BumperHazImagesV HazPayload) + (HazardBellyImagesV BellyPayload),
+      BumperCycleTime=LightRoundTrip + BumperPayload / DownlinkRateV + DownlinkLatency + BumperEvalTimeV + UplinkLatency,
+      BumperTotalTime=BumperEvents BumperCycleTime,
+
+      ScienceEvents=PathLength ScienceRateV,
+      ScienceTotalTime=ScienceEvents ScienceEvalTimeV,
+
+      TotalTime=DrivingTotalTime + ScienceTotalTime + HazardTotalTime + BumperTotalTime,
+      WaitingTotalTime=DrivingTotalTime - DriveEvents DrivingTime,
+      SpeedMadeGood=100.0 Distance/TotalTime},
+
+      {SpeedMadeGood,DriveEvents,DrivingTime,TotalTime,DrivingTime/TotalTime,DrivingCycleTime,DrivingTotalTime,HazardEvents,HazardCycleTime,HazardTotalTime,ScienceEvents,ScienceTotalTime, BumperTotalTime,WaitingTotalTime}];
+
+SMG[args__]:=(Rover@@{args})[[1]];
+
+Case1 = {0,
+	  Compression->10.0,
+	  DownlinkRate->60000.0,
+	  DriveEvalTime->120.0,
+	  DrivingSpeed->10.0,
+	  DrivingNavImages->1,
+	  HazardRate->1/5.0,
+	  HazardEvalTime->120.0,
+	  HazardNavImages->1,
+	  HazardHazImages->1,
+	  HazardBellyImages->0,
+	  Lookahead->1.5,
+	  PathMultiplier->3.5,
+	  ScienceRate->1/50.0,
+	  ScienceEvalTime->120.0};
+
+Case2 = {0,
+	  Compression->4.0,
+	  DownlinkRate->60000.0,
+	  DriveEvalTime->90.0,
+	  DrivingSpeed->10.0,
+	  DrivingNavImages->2,
+	  HazardRate->1/20.0,
+	  HazardEvalTime->90.0,
+	  HazardNavImages->6,
+	  HazardHazImages->1,
+	  HazardBellyImages->1,
+	  Lookahead->4.5,
+	  PathMultiplier->2.5,
+	  ScienceRate->1/50.0,
+	  ScienceEvalTime->120.0};
+
+Case3 = {0,
+	  Compression->4.0,
+	  DownlinkRate->60000.0,
+	  DriveEvalTime->60.0,
+	  DrivingSpeed->10.0,
+	  DrivingNavImages->2,
+	  HazardRate->1/25.0,
+	  HazardEvalTime->60.0,
+	  HazardNavImages->6,
+	  HazardHazImages->1,
+	  HazardBellyImages->1,
+	  Lookahead->5.5,
+	  PathMultiplier->2.5,
+	  ScienceRate->1/50.0,
+	  ScienceEvalTime->120.0};
+
+Case4 = {0,
+	  Compression->4.0,
+	  DownlinkRate->60000.0,
+	  DriveEvalTime->90.0,
+	  DrivingSpeed->10.0,
+	  DrivingNavImages->2,
+	  HazardRate->1/25.0,
+	  HazardEvalTime->90.0,
+	  HazardNavImages->2,
+	  HazardHazImages->4,
+	  HazardBellyImages->1,
+	  Lookahead->4.5,
+	  PathMultiplier->2.2,
+	  ScienceRate->1/50.0,
+	  ScienceEvalTime->120.0};
+
+Case5 = {0,
+	  Compression->4.0,
+	  DownlinkRate->60000.0,
+	  DriveEvalTime->60.0,
+	  DrivingSpeed->10.0,
+	  DrivingNavImages->2,
+	  HazardRate->1/75.0,
+	  HazardEvalTime->60.0,
+	  HazardNavImages->2,
+	  HazardHazImages->4,
+	  HazardBellyImages->1,
+	  Lookahead->6.5,
+	  PathMultiplier->2.2,
+	  ScienceRate->1/50.0,
+	  ScienceEvalTime->120.0,
+	  BumperRate->1/50.0};
+
+
+
+SMGe1=SMG@@Case1;
+SMGe2=SMG@@Case2;
+SMGe3=SMG@@Case3;
+SMGe4=SMG@@Case4;
+SMGe5=SMG@@Case5;
+
+
+ModelSpeeds={SMG@@Case1,SMG@@Case2,SMG@@Case3,SMG@@Case4,SMG@@Case5};
+
+BarChart[ModelSpeeds,ChartLabels->{"E1","E2","E3","E4","E5"}]
+
+DESSpeeds={0.00174,0.00668,0.00760,0.00744,0.01350} 100;
+
+BarChart[Transpose[{ModelSpeeds,DESSpeeds}],ChartLabels->{{"E1","D1"}, {"E2","D2"}, {"E3","D3"}, {"E4","D4"}, {"E5","D5"}}]
+
+Plot[{SMG[0, DownlinkRate -> 60000, DrivingSpeed -> x], 
+      SMG[0, DownlinkRate -> 400000, DrivingSpeed -> x]},
+      {x, .01, 50}, 
+      PlotLegends -> LineLegend[{"60000 bps", "400000 bps"}]]
+
+ 1    		  2  		3        4         5                    6               7                8            9               10              11            12               13
+{SpeedMadeGood,DriveEvents,DrivingTime,TotalTime,DrivingTime/TotalTime,DrivingCycleTime,DrivingTotalTime,HazardEvents,HazardCycleTime,HazardTotalTime,ScienceEvents,ScienceTotalTime,BumperTotalTime}
+
+TimeBreakdown[args__]:={#7,#10,#12,#13,#14}&@@Rover@@{args};
+
+BarChart[Table[ TimeBreakdown @@ i, {i, {Case1, Case2, Case3, Case4, Case5}}], ChartLayout -> "Stacked", ChartLabels -> {"Driving", "Hazard", "Science","Bumper"}]
+
+ContourPlot[SMG[0,DrivingSpeed->x,DownlinkRate->y],{x,10.0,50.0},{y,60000.0,400000.0},Contours->10,PlotRange->{{10.0,50.0},{60000.0,400000.0}},FrameLabel->{"Driving Speed","Downlink Rate"}]
+
+
+ContourPlot[SMG[0,DriveEvalTime->x,DownlinkRate->y],{x,30.0,300.0},{y,60000.0,400000.0},Contours->10,PlotRange->{{30.0,300.0},{60000.0,400000.0}},FrameLabel->{"Driving Decision Time","Downlink Rate"}]
+ContourPlot[SMG[0,HazardRate->x,DownlinkRate->y],{x,0.0,1.0},{y,60000.0,400000.0},Contours->10,PlotRange->{{0.0,1.0},{60000.0,400000.0}},FrameLabel->{"Hazard Rate","Downlink Rate"}]

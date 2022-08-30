@@ -1,0 +1,117 @@
+close all
+
+%downlink_rate = [60000:7900:450000];      %bps
+low_downlink_rate = 60000;                  %bps
+high_downlink_rate = 400000;                %bps
+driving_speed = [0:0.01:0.5];                %m/s
+
+pixels = 2*1024*1024;
+bits_per_pixel = 12;
+subframing = 2;                 %reduced 
+compression = 4;                %factor
+driving_step = 4.5;             %meters
+
+path_length = 2.5;              %multiplier
+
+driver_decision_time = 90;      %seconds
+transmission_roundtrip = 2.6;    %seconds - light time to the moon and back
+gds_latency = 10;               %seconds - downlink delay from DSN to MOS
+slip_factor = 1.1;              %percentage slip
+
+image_size = pixels*bits_per_pixel/subframing/compression;
+driving_time = (driving_step*slip_factor)./driving_speed;
+
+ 
+%image_downlink_time = image_size./downlink_rate;
+
+low_dr_image_downlink_time = image_size/low_downlink_rate;
+high_dr_image_downlink_time = image_size/high_downlink_rate;
+
+ 
+%speed_made_good = driving_step./(image_downlink_time+driver_decision_time+driving_time+transmission_roundtrip);
+
+low_dr_drive_step_time = low_dr_image_downlink_time+driver_decision_time+driving_time+gds_latency+transmission_roundtrip;
+high_dr_drive_step_time = high_dr_image_downlink_time+driver_decision_time+driving_time+gds_latency+transmission_roundtrip;
+
+low_dr_speed_made_good_along_path = driving_step./low_dr_drive_step_time;
+high_dr_speed_made_good_along_path = driving_step./high_dr_drive_step_time;
+
+low_dr_speed_made_good = driving_step./(low_dr_drive_step_time*path_length);
+high_dr_speed_made_good = driving_step./(high_dr_drive_step_time*path_length);
+
+% plot(downlink_rate./1000,speed_made_good.*100)
+% xlabel('Rover Downlink Data Rate (kbps)')
+% ylabel('Speed Made Good (cm/s)')
+
+% figure()
+% plot(driving_speed.*100,speed_made_good.*100)
+% xlabel('Rover Driving Speed (cm/s)')
+% ylabel('Speed Made Good (cm/s)')
+% annotation('textbox',...
+%     [0.642071428571427 0.6 0.241857142857143 0.0880952380952383],...
+%     'String',{'Rover Downlink Data Rate = 60 kbps'},...
+%     'FitBoxToText','off');
+
+ 
+%createfigure1(driving_speed.*100,low_dr_speed_made_good.*100)
+f1 = figure();
+plot(driving_speed.*100,low_dr_speed_made_good_along_path.*100)
+xlabel('Rover Driving Speed (cm/s)')
+ylabel('Speed Made Good Along Path (cm/s)')
+
+% figure()
+hold on
+
+plot(driving_speed.*100,high_dr_speed_made_good_along_path.*100)
+legend('60 kbps for driving', '400 kbps for driving')
+
+annotation('textbox',...
+    [0.514285714285714 0.254761904761905 0.3625 0.142857142857144],...
+    'String',['Driver Decision Time = 90 sec',sprintf('\n'),'',sprintf('\n'),'Driving Step = 4.5 m'],...
+    'FitBoxToText','off');
+
+saveas(f1,'C:\Users\stmille1\Documents\MATLAB\RP\Driving\smg_along_path_vs_driving_speed_test','png')
+
+figure()
+plot(driving_speed.*100,low_dr_speed_made_good.*100)
+xlabel('Rover Driving Speed (cm/s)')
+ylabel('Speed Made Good (w/out recharge) (cm/s)')
+
+hold on
+
+plot(driving_speed.*100,high_dr_speed_made_good.*100)
+legend('60 kbps for driving', '400 kbps for driving')
+
+annotation('textbox',...
+    [0.514285714285714 0.175704989154013 0.3625 0.221914058465036],...
+    'String',{'Driver Decision Time = 90 sec','','Driving Step = 4.5 m','','Path Length Multiplier = 2.5'},...
+    'FitBoxToText','off');
+
+k=find(driving_speed==0.1);
+
+figure()
+D = [transmission_roundtrip gds_latency low_dr_image_downlink_time driving_time(k) driver_decision_time;
+          transmission_roundtrip gds_latency high_dr_image_downlink_time driving_time(k) driver_decision_time];
+hBar = bar(D,0.3,'stacked');
+
+xt = get(gca, 'XTick');
+set(gca, 'XTick', xt, 'XTickLabel', {'60 kbps rover downlink' '400 kbps rover downlink'})
+yd = get(hBar, 'YData');
+ytime = {'Propogation' 'GDS Latency' 'Downlink' 'Driving' 'Driver Decision'};
+barbase = cumsum([zeros(size(D,1),1) D(:,1:end-1)],2);
+joblblpos = D/2 + barbase;
+for k1 = 1:size(D,1)
+    text(xt(k1)*ones(1,size(D,2)), joblblpos(k1,:), ytime, 'HorizontalAlignment','center')
+end
+
+title('Event Durations for Single Drive Step - Drive Speed of 10 cm/s')
+ylabel('Time (seconds)')
+
+
+Scott T. Miller
+Resource Prospector ¡V Systems Engineer
+NASA Ames Research Center
+M/S 232-21
+Moffett Field, CA 94035
+o. 650-604-1854
+

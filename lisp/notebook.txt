@@ -1,0 +1,46 @@
+DownlinkRate := 60000.0;
+LightRoundTrip := 2.6;
+NetworkLatency := 10.0;
+PathMultiplier:=2.5;
+Distance:=1000.0;
+PathLength:=PathMultiplier Distance;
+
+LookaheadDay:=4.5;
+DrivingSpeed:=10.0;
+SlipFactor:=1.0;
+
+NavPayload := (2 1024 1024 12) / (2 4.0) ;
+HazPayload := (512 512 12) / (2 4.0);
+
+DriveDecisionTime:=90.0;
+
+ScienceRate:=0/50.0;
+ScienceTime:=120.0;
+HazardRate:=0/5.0;
+HazardTime:=120.0;
+HazardPayload:=HazPayload 2.0;
+
+	DriveEvents:=PathLength/LookaheadDay;
+	MetersPerSecond:=DrivingSpeed/100.0;
+	DrivingTime:=(PathLength SlipFactor)/MetersPerSecond;
+	DrivingDecisionTime:=DriveEvents DriveDecisionTime;
+	DriveTransmissionTime:=DriveEvents (LightRoundTrip + (NavPayload / DownlinkRate) + 2 NetworkLatency);
+	HazardEvents:=PathLength HazardRate;
+	HazardTransmissionTime:=HazardEvents (LightRoundTrip+(HazardPayload/DownlinkRate)+2 NetworkLatency);
+	TotalTime:=DrivingTime + DrivingDecisionTime + DriveTransmissionTime + HazardTransmissionTime;
+	SpeedMadeGood:=100.0 Distance/TotalTime;
+
+
+expr:=With[{
+	DriveEvents:=PathLength/LookaheadDay,
+	MetersPerSecond:=DrivingSpeed/100.0,
+	DrivingTime:=(PathLength SlipFactor)/MetersPerSecond,
+	DrivingDecisionTime:=DriveEvents DriveDecisionTime,
+	DriveTransmissionTime:=DriveEvents (LightRoundTrip + (NavPayload / DownlinkRate) + 2 NetworkLatency),
+	HazardEvents:=PathLength HazardRate,
+	HazardTransmissionTime:=HazardEvents (LightRoundTrip+(HazardPayload/DownlinkRate)+2 NetworkLatency),
+	TotalTime:=DrivingTime + DrivingDecisionTime + DriveTransmissionTime + HazardTransmissionTime,
+	SpeedMadeGood:=100.0 Distance/TotalTime},
+	SpeedMadeGood];
+
+Manipulate[Plot[expr,{DrivingSpeed,.01,50}]]

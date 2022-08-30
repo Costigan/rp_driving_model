@@ -1,0 +1,32 @@
+low_downlink_rate = 60000;                  %bps
+high_downlink_rate = 400000;                %bps
+%driving_speed = [0:0.01:0.5];                %m/s
+driving_speed = 0.1;
+
+pixels = 2*1024*1024;
+bits_per_pixel = 12;
+subframing = 2;                 %reduced 
+compression = 4;                %factor
+driving_step = 4.5;             %meters
+
+path_length = 2.5;              %multiplier
+
+driver_decision_time = 90;      %seconds
+transmission_roundtrip = 2.6;    %seconds - light time to the moon and back
+gds_latency = 10;               %seconds - downlink delay from DSN to MOS
+slip_factor = 1.0;              %percentage slip
+
+image_size = pixels*bits_per_pixel/subframing/compression;
+driving_time = (driving_step*slip_factor)./driving_speed;
+
+low_dr_image_downlink_time = image_size/low_downlink_rate;
+high_dr_image_downlink_time = image_size/high_downlink_rate;
+
+low_dr_drive_step_time = low_dr_image_downlink_time+driver_decision_time+driving_time+(2*gds_latency)+transmission_roundtrip;
+high_dr_drive_step_time = high_dr_image_downlink_time+driver_decision_time+driving_time+(2*gds_latency)+transmission_roundtrip;
+
+low_dr_speed_made_good_along_path = driving_step./low_dr_drive_step_time
+high_dr_speed_made_good_along_path = driving_step./high_dr_drive_step_time;
+
+low_dr_speed_made_good = driving_step./(low_dr_drive_step_time*path_length)
+high_dr_speed_made_good = driving_step./(high_dr_drive_step_time*path_length);
